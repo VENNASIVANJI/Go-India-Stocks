@@ -1,0 +1,43 @@
+import pandas as pd
+from transformers import pipeline
+from google.colab import drive
+from google.colab import auth
+import gspread
+from oauth2client.client import GoogleCredentials
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+df = pd.read_csv('news_data.csv')
+
+sentiment_analysis = pipeline("sentiment-analysis")
+
+
+df['Sentiment Score'] = df['Headline'].apply(lambda x: sentiment_analysis(x)[0]['score'])
+
+auth.authenticate_user()
+gc = gspread.authorize(GoogleCredentials.get_application_default())
+
+
+sh = gc.create('Green Hydrogen News Data')
+
+
+sh.sheet1.update([df.columns.values.tolist()] + df.values.tolist())
+
+
+sh.share("YOUR_EMAIL_OR_LINK", perm_type='anyone', role='reader')
+
+df['News Date'] = pd.to_datetime(df['News Date'])
+
+
+df['Week'] = df['News Date'].dt.week
+
+
+weekly_trend = df.groupby('Week')['Sentiment Score'].mean()
+weekly_trend.plot(kind='bar', xlabel='Week', ylabel='Average Sentiment Score', title='Week-wise Trend of Sentiment Score')
+plt.show()
+
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate(' '.join(df['Organization']))
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.title('Word Cloud of Organization Names in News Headlines')
+plt.show()
